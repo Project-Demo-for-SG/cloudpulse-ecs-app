@@ -12,7 +12,6 @@ jobs:
   oidc-test:
     name: Test AWS OIDC connection
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main'))
-    needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
