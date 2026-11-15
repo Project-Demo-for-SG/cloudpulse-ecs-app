@@ -9,20 +9,33 @@ on:
   workflow_dispatch:
 
 jobs:
-  oidc-test:
-    name: Test AWS OIDC connection
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main'))
-    runs-on: ubuntu-latest
+  deploy-cloudpulse:
+    # Runner: Ubuntu for Docker compatibility
+    runs-on: ubuntu-latest 
     permissions:
       contents: read
       id-token: write
     steps:
+      # Checkout code from repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Verify Dockerfiles exist
+      - name: Check app directories
+        run: |
+          ls -l frontend/Dockerfile || echo "Error: Frontend Dockerfile not found"
+          ls -l backend/Dockerfile || echo "Error: Backend Dockerfile not found"
+          if [ ! -f frontend/Dockerfile ] || [ ! -f backend/Dockerfile ]; then exit 1; fi
+
+      # Configure AWS credentials for ECR and ECS access using OIDC
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-          role-session-name: GitHubActions-OIDC-Test-${{ github.run_id }}
+          role-session-name: GitHubActions-${{ github.run_id }}
 
-      - name: Verify AWS caller identity
-        run: aws sts get-caller-identity
+      # Log in to Amazon ECR
+      - name: Log in to ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
