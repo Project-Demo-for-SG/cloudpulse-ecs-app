@@ -46,3 +46,16 @@ jobs:
           docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/cloudpulse-app-repo:frontend-latest frontend
           docker images | grep cloudpulse-app-repo | grep frontend-latest # Verify image
           echo "Frontend image packaged"
+
+      # Package backend image
+      - name: Package backend image
+        run: |
+          docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/cloudpulse-app-repo:backend-latest backend
+          docker images | grep cloudpulse-app-repo | grep backend-latest # Verify image
+          echo "Backend image packaged"
+
+      # Push images to ECR
+      - name: Push images to ECR
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/cloudpulse-app-repo:frontend-latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/cloudpulse-app-repo:backend-latest
