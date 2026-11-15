@@ -1,0 +1,68 @@
+services:
+
+  backend:
+
+    build:
+      context: ./backend
+
+    image: cloudpulse-backend:local
+
+    container_name: cloudpulse-backend
+
+    environment:
+
+      APP_ENV: local
+
+      WORK_ITERATIONS_DEFAULT: "1200000"
+
+      MAX_WORK_ITERATIONS: "20000000"
+
+    expose:
+
+      - "3000"
+
+    healthcheck:
+
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/api/health', timeout=2)"
+
+      interval: 10s
+
+      timeout: 3s
+
+      retries: 3
+
+      start_period: 8s
+
+    restart: unless-stopped
+
+
+  frontend:
+
+    build:
+      context: ./frontend
+
+    image: cloudpulse-frontend:local
+
+    container_name: cloudpulse-frontend
+
+    environment:
+
+      BACKEND_URL: "http://backend:3000"
+
+      DNS_RESOLVER: "127.0.0.11"
+
+    ports:
+
+      - "8080:80"
+
+    depends_on:
+
+      backend:
+
+        condition: service_healthy
+
+    restart: unless-stopped

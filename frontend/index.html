@@ -1,0 +1,628 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+
+<title>CloudPulse - Scaling Lab</title>
+
+<style>
+
+:root {
+    --bg: #09111f;
+    --panel: #111e31;
+    --border: #263a55;
+    --muted: #9db0c9;
+    --blue: #69a8ff;
+    --green: #47d7a0;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+
+    margin: 0;
+
+    background:
+        radial-gradient(
+            ellipse at 15% 0%,
+            #173052 0,
+            transparent 38%
+        ),
+        var(--bg);
+
+    color: #edf4ff;
+
+    font-family: Arial, sans-serif;
+}
+
+main {
+
+    max-width: 1100px;
+
+    margin: 36px auto;
+
+    padding: 22px;
+}
+
+header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    flex-wrap: wrap;
+
+    gap: 15px;
+}
+
+h1 {
+
+    font-size: 38px;
+
+    margin: 10px 0;
+}
+
+h2 {
+
+    margin-top: 0;
+}
+
+.muted {
+
+    color: var(--muted);
+}
+
+.panel {
+
+    background: var(--panel);
+
+    border: 1px solid var(--border);
+
+    border-radius: 15px;
+
+    padding: 22px;
+
+    margin: 18px 0;
+}
+
+.metrics {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+    gap: 12px;
+}
+
+.metric {
+
+    background: #0a1728;
+
+    border: 1px solid #20344e;
+
+    border-radius: 12px;
+
+    padding: 16px;
+}
+
+.metric small {
+
+    color: var(--muted);
+}
+
+.metric strong {
+
+    display: block;
+
+    font-size: 23px;
+
+    margin-top: 8px;
+
+    overflow-wrap: anywhere;
+}
+
+.layout {
+
+    display: grid;
+
+    grid-template-columns: 1.1fr .9fr;
+
+    gap: 18px;
+}
+
+label {
+
+    display: block;
+
+    margin: 13px 0 6px;
+
+    color: var(--muted);
+}
+
+input {
+
+    width: 100%;
+
+    padding: 12px;
+
+    background: #091525;
+
+    color: white;
+
+    border: 1px solid #334b68;
+
+    border-radius: 8px;
+
+    font-size: 15px;
+}
+
+button {
+
+    background: #347fe8;
+
+    color: white;
+
+    border: none;
+
+    padding: 12px 17px;
+
+    border-radius: 9px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+button.secondary {
+
+    background: #263a55;
+}
+
+button:disabled {
+
+    opacity: .5;
+
+    cursor: wait;
+}
+
+pre {
+
+    background: #091525;
+
+    border: 1px solid #20344e;
+
+    padding: 14px;
+
+    border-radius: 10px;
+
+    white-space: pre-wrap;
+
+    overflow-wrap: anywhere;
+
+    max-height: 280px;
+
+    overflow: auto;
+}
+
+.status {
+
+    color: var(--green);
+}
+
+@media(max-width:760px) {
+
+    .metrics {
+
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+    .layout {
+
+        grid-template-columns: 1fr;
+    }
+
+    h1 {
+
+        font-size: 28px;
+    }
+}
+
+</style>
+
+</head>
+
+<body>
+
+<main>
+
+<header>
+
+    <div>
+
+        <div class="muted">
+            CLOUDPULSE / SERVICE LOAD LAB
+        </div>
+
+        <h1>
+            Application Performance Console
+        </h1>
+
+        <p class="muted">
+            Two-tier application demonstrating
+            ECS horizontal scaling.
+        </p>
+
+    </div>
+
+    <div id="health" class="status">
+        Checking backend...
+    </div>
+
+</header>
+
+
+<!-- LIVE TELEMETRY -->
+
+<section class="panel">
+
+    <h2>Live Backend Telemetry</h2>
+
+    <p class="muted">
+        Automatically refreshed every 3 seconds.
+    </p>
+
+    <div class="metrics">
+
+        <div class="metric">
+
+            <small>Backend Task</small>
+
+            <strong id="hostname">—</strong>
+
+        </div>
+
+        <div class="metric">
+
+            <small>Completed Requests</small>
+
+            <strong id="count">—</strong>
+
+        </div>
+
+        <div class="metric">
+
+            <small>Average Processing</small>
+
+            <strong id="latency">—</strong>
+
+        </div>
+
+        <div class="metric">
+
+            <small>Task Uptime</small>
+
+            <strong id="uptime">—</strong>
+
+        </div>
+
+    </div>
+
+    <br>
+
+    <button
+        class="secondary"
+        onclick="refreshDashboard()">
+
+        Refresh Now
+
+    </button>
+
+</section>
+
+
+<div class="layout">
+
+
+<!-- WORKLOAD GENERATOR -->
+
+<section class="panel">
+
+    <h2>Generate Backend Workload</h2>
+
+    <p class="muted">
+
+        Generate CPU-intensive processing requests
+        against the backend.
+
+    </p>
+
+    <label>
+        CPU Iterations
+    </label>
+
+    <input
+        type="number"
+        id="iterations"
+        min="1000"
+        max="20000000"
+        step="100000"
+        value="1200000"
+    >
+
+    <label>
+        Concurrent Requests
+    </label>
+
+    <input
+        type="number"
+        id="parallel"
+        min="1"
+        max="20"
+        value="3"
+    >
+
+    <br><br>
+
+    <button
+        id="run"
+        onclick="runWorkload()">
+
+        Run Workload Burst
+
+    </button>
+
+    <p id="status" class="muted">
+        Ready.
+    </p>
+
+    <pre id="output">
+Workload results will appear here.
+    </pre>
+
+</section>
+
+
+<!-- INFORMATION -->
+
+<section class="panel">
+
+    <h2>Scaling Experiment</h2>
+
+    <ol>
+
+        <li>Start with one backend task.</li>
+
+        <li>Record baseline CPU utilization.</li>
+
+        <li>Increase concurrent requests.</li>
+
+        <li>Observe backend CPU utilization.</li>
+
+        <li>Observe ECS task count increasing.</li>
+
+        <li>Stop load and observe scale-in.</li>
+
+    </ol>
+
+    <p class="muted">
+
+        Use k6 for repeatable concurrent load.
+        Browser-generated requests are intended
+        for functional demonstrations.
+
+    </p>
+
+</section>
+
+</div>
+
+
+<footer class="muted">
+
+    CloudPulse | Stateless CPU Workload Demo
+
+</footer>
+
+</main>
+
+
+<script>
+
+// --------------------------------
+// Helper
+// --------------------------------
+
+async function getJSON(url) {
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+
+        throw new Error(
+            `${response.status} ${response.statusText}`
+        );
+
+    }
+
+    return response.json();
+
+}
+
+
+// --------------------------------
+// Dashboard refresh
+// --------------------------------
+
+async function refreshDashboard() {
+
+    try {
+
+        const data = await getJSON(
+            "/api/dashboard"
+        );
+
+        document.getElementById(
+            "hostname"
+        ).textContent = data.hostname;
+
+        document.getElementById(
+            "count"
+        ).textContent =
+            data.completed_work_requests;
+
+        document.getElementById(
+            "latency"
+        ).textContent =
+            data.recent_average_processing_ms + " ms";
+
+        document.getElementById(
+            "uptime"
+        ).textContent =
+            data.uptime_seconds + " sec";
+
+        document.getElementById(
+            "health"
+        ).textContent =
+            "● Backend Healthy";
+
+    }
+
+    catch(error) {
+
+        document.getElementById(
+            "health"
+        ).textContent =
+            "● Backend Unavailable";
+
+    }
+
+}
+
+
+// --------------------------------
+// Generate concurrent workload
+// --------------------------------
+
+async function runWorkload() {
+
+    const iterations = Number(
+        document.getElementById(
+            "iterations"
+        ).value
+    );
+
+    const concurrency = Number(
+        document.getElementById(
+            "parallel"
+        ).value
+    );
+
+    const status = document.getElementById(
+        "status"
+    );
+
+    const button = document.getElementById(
+        "run"
+    );
+
+    if (
+        !Number.isInteger(iterations) ||
+        iterations < 1000 ||
+        iterations > 20000000 ||
+        !Number.isInteger(concurrency) ||
+        concurrency < 1 ||
+        concurrency > 20
+    ) {
+
+        status.textContent =
+            "Please enter valid workload values.";
+
+        return;
+
+    }
+
+    button.disabled = true;
+
+    status.textContent =
+        `Running ${concurrency} concurrent requests...`;
+
+    const start = performance.now();
+
+    try {
+
+        const requests = Array.from(
+            { length: concurrency },
+            () => getJSON(
+                `/api/work?iterations=${iterations}`
+            )
+        );
+
+        const results = await Promise.all(requests);
+
+        const totalTime = Math.round(
+            performance.now() - start
+        );
+
+        document.getElementById(
+            "output"
+        ).textContent = JSON.stringify({
+
+            total_requests: results.length,
+
+            total_elapsed_ms: totalTime,
+
+            results: results
+
+        }, null, 2);
+
+        status.textContent =
+            "All workload requests completed.";
+
+    }
+
+    catch(error) {
+
+        status.textContent =
+            "Request failed: " + error.message;
+
+    }
+
+    finally {
+
+        button.disabled = false;
+
+        refreshDashboard();
+
+    }
+
+}
+
+
+// --------------------------------
+// Automatic telemetry polling
+// --------------------------------
+
+refreshDashboard();
+
+setInterval(
+    refreshDashboard,
+    3000
+);
+
+</script>
+
+</body>
+
+</html>
