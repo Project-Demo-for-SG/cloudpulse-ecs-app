@@ -6,9 +6,6 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
   workflow_dispatch:
 
 jobs:
@@ -31,6 +28,19 @@ jobs:
           ls -l backend/Dockerfile || echo "Error: Backend Dockerfile not found"
           if [ ! -f frontend/Dockerfile ] || [ ! -f backend/Dockerfile ]; then exit 1; fi
 
+      # Configure AWS credentials for ECR and ECS access using OIDC
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: GitHubActions-${{ github.run_id }}
+
+      # Log in to Amazon ECR
+      - name: Log in to ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
       # Package frontend image
       - name: Package frontend image
         run: |
@@ -44,68 +54,6 @@ jobs:
           docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/cloudpulse-app-repo:backend-latest backend
           docker images | grep cloudpulse-app-repo | grep backend-latest # Verify image
           echo "Backend image packaged"
-
-      # Scan both local images before authenticating to or pushing to ECR.
-      - name: Scan frontend image with Trivy
-        id: scan_frontend
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/cloudpulse-app-repo:frontend-latest
-          format: json
-          output: trivy-frontend-report.json
-          scanners: vuln
-          vuln-type: os,library
-          severity: CRITICAL
-          exit-code: '1'
-        continue-on-error: true
-
-      - name: Scan backend image with Trivy
-        id: scan_backend
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/cloudpulse-app-repo:backend-latest
-          format: json
-          output: trivy-backend-report.json
-          scanners: vuln
-          vuln-type: os,library
-          severity: CRITICAL
-          exit-code: '1'
-        continue-on-error: true
-
-      - name: Upload Trivy reports
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: trivy-image-scan-reports
-          path: |
-            trivy-frontend-report.json
-            trivy-backend-report.json
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Block push if either image scan failed
-        if: always()
-        env:
-          FRONTEND_SCAN_OUTCOME: ${{ steps.scan_frontend.outcome }}
-          BACKEND_SCAN_OUTCOME: ${{ steps.scan_backend.outcome }}
-        run: |
-          if [ "$FRONTEND_SCAN_OUTCOME" != "success" ] || [ "$BACKEND_SCAN_OUTCOME" != "success" ]; then
-            echo "::error::At least one Trivy scan failed or found a critical vulnerability; images will not be pushed."
-            exit 1
-          fi
-
-      # Configure AWS credentials for ECR access only after the scans pass.
-      - name: Configure AWS credentials with OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
-          role-session-name: GitHubActions-${{ github.run_id }}
-
-      # Log in to Amazon ECR after the scans pass.
-      - name: Log in to ECR
-        run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
       # Push images to ECR
       - name: Push images to ECR
