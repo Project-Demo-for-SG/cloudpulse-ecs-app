@@ -1,7 +1,7 @@
 # Workflow: Builds, packages, and deploys app to AWS ECS
 name: Deploy Application
 
-# Trigger: Runs on pushes to main, or manually from GitHub Actions
+# Trigger: Runs on non-docs pushes to main, or manually from GitHub Actions
 on:
   push:
     branches:
@@ -10,6 +10,7 @@ on:
 
 jobs:
   deploy-cloudpulse:
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'docs:') }}
     # Runner: Ubuntu for Docker compatibility
     runs-on: ubuntu-latest 
     permissions:
